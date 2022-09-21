@@ -115,6 +115,28 @@ public:
         }
     }
 
+    // to handle MSVC template Error.
+
+    template <typename Scalar, int size, int _Options, int _MaxRows, int _MaxCols>
+    static void makePD(Eigen::Matrix<Scalar, size, size, _Options, _MaxRows, _MaxCols>& symMtr)
+    {
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix<Scalar, size, size>> eigenSolver(symMtr);
+        if (eigenSolver.eigenvalues()[0] >= 0.0) {
+            return;
+        }
+        Eigen::DiagonalMatrix<Scalar, size> D(eigenSolver.eigenvalues());
+        int rows = ((size == Eigen::Dynamic) ? symMtr.rows() : size);
+        for (int i = 0; i < rows; i++) {
+            if (D.diagonal()[i] < 0.0) {
+                D.diagonal()[i] = 0.0;
+            }
+            else {
+                break;
+            }
+        }
+        symMtr = eigenSolver.eigenvectors() * D * eigenSolver.eigenvectors().transpose();
+    }
+
     // project a symmetric real matrix to the nearest SPD matrix
     template <typename Scalar, int size>
     static void makePD(Eigen::Matrix<Scalar, size, size>& symMtr)
@@ -135,8 +157,48 @@ public:
         }
         symMtr = eigenSolver.eigenvectors() * D * eigenSolver.eigenvectors().transpose();
     }
-    template <typename Scalar, int size>
-    static void makePD2d(Eigen::Matrix<Scalar, size, size>& symMtr)
+    // template <typename Scalar, int size>
+    // static void makePD2d(Eigen::Matrix<Scalar, size, size>& symMtr)
+    //{
+    //     // based on http://www.math.harvard.edu/archive/21b_fall_04/exhibits/2dmatrices/
+
+    //    if (size == Eigen::Dynamic) {
+    //        assert(symMtr.rows() == 2);
+    //    }
+    //    else {
+    //        assert(size == 2);
+    //    }
+
+    //    const double a = symMtr(0, 0);
+    //    const double b = (symMtr(0, 1) + symMtr(1, 0)) / 2.0;
+    //    const double d = symMtr(1, 1);
+
+    //    double b2 = b * b;
+    //    const double D = a * d - b2;
+    //    const double T_div_2 = (a + d) / 2.0;
+    //    const double sqrtTT4D = std::sqrt(T_div_2 * T_div_2 - D);
+    //    const double L2 = T_div_2 - sqrtTT4D;
+    //    if (L2 < 0.0) {
+    //        const double L1 = T_div_2 + sqrtTT4D;
+    //        if (L1 <= 0.0) {
+    //            symMtr.setZero();
+    //        }
+    //        else {
+    //            if (b2 == 0.0) {
+    //                symMtr << L1, 0.0, 0.0, 0.0;
+    //            }
+    //            else {
+    //                const double L1md = L1 - d;
+    //                const double L1md_div_L1 = L1md / L1;
+    //                symMtr(0, 0) = L1md_div_L1 * L1md;
+    //                symMtr(0, 1) = symMtr(1, 0) = b * L1md_div_L1;
+    //                symMtr(1, 1) = b2 / L1;
+    //            }
+    //        }
+    //    }
+    //}
+    template <typename Scalar, int size, int option, int maxRow, int maxCol>
+    static void makePD2d(Eigen::Matrix<Scalar, size, size, option, maxRow, maxCol>& symMtr)
     {
         // based on http://www.math.harvard.edu/archive/21b_fall_04/exhibits/2dmatrices/
 
@@ -175,8 +237,22 @@ public:
             }
         }
     }
-    template <typename Scalar, int size>
-    static void flipDet_SVD(Eigen::Matrix<Scalar, size, size>& mtr)
+    // template <typename Scalar, int size>
+    // static void flipDet_SVD(Eigen::Matrix<Scalar, size, size>& mtr)
+    //{
+    //     Eigen::JacobiSVD<Eigen::Matrix<Scalar, size, size>> svd(mtr, Eigen::ComputeFullU | Eigen::ComputeFullV);
+
+    //    Eigen::Matrix<Scalar, size, size> U = svd.matrixU(), V = svd.matrixV();
+    //    if (U.determinant() < 0) {
+    //        U.col(U.cols() - 1) *= -1.0;
+    //    }
+    //    if (V.determinant() < 0) {
+    //        V.col(V.cols() - 1) *= -1.0;
+    //    }
+    //    mtr = U * Eigen::DiagonalMatrix<Scalar, size>(svd.singularValues()) * V.transpose();
+    //}
+    template <typename Scalar, int size, int option, int maxRow, int maxCol>
+    static void flipDet_SVD(Eigen::Matrix<Scalar, size, size, option, maxRow, maxCol>& mtr)
     {
         Eigen::JacobiSVD<Eigen::Matrix<Scalar, size, size>> svd(mtr, Eigen::ComputeFullU | Eigen::ComputeFullV);
 
@@ -189,7 +265,6 @@ public:
         }
         mtr = U * Eigen::DiagonalMatrix<Scalar, size>(svd.singularValues()) * V.transpose();
     }
-
     static void writeSparseMatrixToFile(const std::string& filePath,
         const Eigen::SparseMatrix<double>& mtr,
         bool MATLAB = false);
@@ -436,6 +511,35 @@ public:
     template <int dim>
     static void computeCofactorMtr(const Eigen::Matrix<double, dim, dim>& F,
         Eigen::Matrix<double, dim, dim>& A)
+    {
+        switch (dim) {
+        case 2:
+            A(0, 0) = F(1, 1);
+            A(0, 1) = -F(1, 0);
+            A(1, 0) = -F(0, 1);
+            A(1, 1) = F(0, 0);
+            break;
+
+        case 3:
+            A(0, 0) = F(1, 1) * F(2, 2) - F(1, 2) * F(2, 1);
+            A(0, 1) = F(1, 2) * F(2, 0) - F(1, 0) * F(2, 2);
+            A(0, 2) = F(1, 0) * F(2, 1) - F(1, 1) * F(2, 0);
+            A(1, 0) = F(0, 2) * F(2, 1) - F(0, 1) * F(2, 2);
+            A(1, 1) = F(0, 0) * F(2, 2) - F(0, 2) * F(2, 0);
+            A(1, 2) = F(0, 1) * F(2, 0) - F(0, 0) * F(2, 1);
+            A(2, 0) = F(0, 1) * F(1, 2) - F(0, 2) * F(1, 1);
+            A(2, 1) = F(0, 2) * F(1, 0) - F(0, 0) * F(1, 2);
+            A(2, 2) = F(0, 0) * F(1, 1) - F(0, 1) * F(1, 0);
+            break;
+
+        default:
+            assert(0 && "dim not 2 or 3");
+            break;
+        }
+    }
+    template <int dim, int option, int MaxRows, int MaxCols>
+    static void computeCofactorMtr(const Eigen::Matrix<double, dim, dim, option, MaxRows, MaxCols>& F,
+        Eigen::Matrix<double, dim, dim, option, MaxRows, MaxCols>& A)
     {
         switch (dim) {
         case 2:

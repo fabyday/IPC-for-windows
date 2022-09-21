@@ -17,6 +17,12 @@ else()
   endif()
 endif()
 
+IF (WIN32)
+    # this remove ambiguity std::byte in c++17 and byte in windows specific header
+   add_definitions(-DHAS_STD_BYTE=0)
+endif()
+
+
 # Include user-provided default options if available. We do that before the main
 # `project()` so that we can define the C/C++ compilers from the option file.
 if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/IPCOptions.cmake)

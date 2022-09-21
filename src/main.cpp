@@ -876,7 +876,7 @@ int main(int argc, char* argv[])
     std::vector<IPC::NeumannBC> NeumannBCs;
     std::vector<std::pair<int, std::string>> meshSeqFolderPath;
     if (suffix == ".txt" || suffix == ".ipc") {
-        loadSucceed = !config.loadFromFile(meshFilePath);
+        loadSucceed = !config.loadFromFile(meshFilePath.string());
         if (loadSucceed) {
             assert(DIM == 3);
 
@@ -905,7 +905,7 @@ int main(int argc, char* argv[])
                 }
                 else {
                     const std::string meshFileSuffix = inputShapePath.extension().string();
-                    const std::string inputShapePathNoSuffix = inputShapePath.parent_path() / inputShapePath.stem();
+                    const std::string inputShapePathNoSuffix = (inputShapePath.parent_path() / inputShapePath.stem()).string();
                     if (meshFileSuffix == ".msh") {
                         if (!IPC::IglUtils::readTetMesh(inputShapePathStr, newV, newF, newSF)) {
                             spdlog::error("Unable to read input msh file: {:s}", inputShapePathStr);
